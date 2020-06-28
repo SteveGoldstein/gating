@@ -15,6 +15,26 @@ source("R/shape_data.R")
 source("R/process_metrics.R")
 ```
 
+Carl, as you begin to use more sensitive data, it would be useful to have APIs that allow user to specify the data origin and possibly the extraction tool. For instance, you are starting to use ODBC (Oracle), but I think we get copies of data from DHS into our SILO protected area as flat files. This is down the way (weeks), and we can work together on how to do this.
+
+This repository <https://github.com/byandell/gating>, which uses the [ohiCovidMetrics](https://github.com/carlbfrederick/ohiCovidMetrics) package, is where Yandell is exploring ideas.
+Please note the last image, which highlights counties that have had >5% positive tests during one of the past 4 weeks.
+
+Notice that I have modified versions of a couple of your routines. Key differences:
+
+- removed ".data$" for better readability
+- modified shape_data as generalization of shape_case_data:
+    + Took out pivot_wider() to keep longer format (go wide for plotting only)
+    + Added "weeks" option to look at more than 2 weeks
+    + Added test and death data
+- modified process_metrics as generalization of process_confirmed_cases
+    + Handle long format
+    + Handle all count types at once
+
+Part of my philosophy is to have more general routines when it makes sense to process similar data, here case, death, test. Note that I ran data through your metrics without adjustment, but down the road the guidelines for deaths or %pos could be added. Just an idea.
+
+Just a heads up that ohiCovidMetrics requires R 4.0 and the `sf` and `ROBDC` packages. Upgrade to a major R version, requires reinstalling all your packages, such as `tidyverse`.
+
 ```{r pull-hist-table, message=FALSE}
 hdt_raw <- pull_histTable(end_date = "2020-06-17") 
 ```
