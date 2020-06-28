@@ -1,0 +1,171 @@
+---
+title: "OHI Metrics"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(ohiCovidMetrics)
+library(readxl)
+source("R/shape_data.R")
+source("R/process_metrics.R")
+```
+
+```{r pull-hist-table}
+hdt_raw <- pull_histTable(end_date = "2020-06-17") 
+```
+
+```{r shape_data}
+hdt_clean <- shape_data(hdt_raw, 10)
+```
+
+```{r eval=FALSE}
+hdt_out <- process_metrics(hdt_clean)
+```
+
+## Pull out county only
+
+```{r}
+hdt_co <- 
+  left_join(
+    hdt_raw %>%
+      filter(geo_type == "County") %>%
+      rename(county = "geo_name"),
+    county_data,
+    by = c("fips", "county", "pop_2018"))
+```
+
+```{r}
+hdt_co_clean <- 
+  left_join(
+    hdt_clean %>%
+      filter(geo_type == "County") %>%
+      rename(county = "geo_name"),
+    county_data,
+    by = c("fips", "county", "pop_2018"))
+```
+
+## Plots of Raw data
+
+```{r}
+ggplot(hdt_raw %>% 
+         filter(geo_type == "HERC Region")) +
+  aes(post_date, case_cum, col = geo_name) +
+  geom_line() +
+  xlab("Date") +
+  ylab("Cumulative Cases") +
+  scale_y_log10()
+```
+
+```{r}
+ggplot(hdt_raw %>% 
+         filter(geo_type == "HERC Region")) +
+  aes(test_cum, case_cum, col = geo_name) +
+  geom_abline(slope = 1, intercept = 0, col = "grey") +
+  geom_line() +
+  xlab("Cumulative Tests") +
+  ylab("Cumulative Cases") +
+  scale_x_log10() +
+  scale_y_log10()
+```
+
+```{r}
+ggplot(hdt_raw %>% 
+         filter(geo_type == "HERC Region",
+                max(post_date) - post_date <= 14)) +
+  aes(post_date, case_daily, col = geo_name) +
+  geom_line() +
+  xlab("Date") +
+  ylab("New Cases") +
+  scale_y_log10()
+```
+
+```{r}
+ggplot(hdt_co %>%
+         filter(max(post_date) - post_date <= 14)) +
+  aes(post_date, case_daily, col = county) +
+  geom_line() +
+  facet_wrap(~ herc_region, scales = "free_y") +
+  theme(legend.position = "none") +
+  xlab("Date") +
+  ylab("New Cases") +
+  scale_y_log10()
+```
+
+```{r}
+ggplot(hdt_co %>%
+         filter(max(post_date) - post_date <= 14)) +
+  aes(post_date, test_daily, col = county) +
+  geom_line() +
+  facet_wrap(~ herc_region, scales = "free_y") +
+  xlab("Date") +
+  ylab("New Cases") +
+  theme(legend.position = "none")
+```
+
+## Plots of Clean Data
+
+```{r}
+ggplot(hdt_co_clean %>% 
+         filter(count_type == "case",
+                weeknum < 3) %>%
+         pivot_wider(id_cols = c("county", "pop_2018", "herc_region"),
+                     values_from = c("weekly", "week_end", "pct_pos"),
+                     names_from = "weeknum") %>%
+         filter(weekly_2 != weekly_1)) +
+  aes(weekly_1, weekly_2 - weekly_1, col = county) +
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_point() +
+  facet_wrap(~herc_region, scales = "free") +
+  theme(legend.position = "none") +
+  xlab("Weekly Count") +
+  ylab("Weekly Change") +
+  scale_x_log10()
+```
+
+```{r}
+ggplot(hdt_co_clean %>% 
+         filter(count_type == "case")) +
+  aes(weekly, pct_pos, col = county, label = weeknum) +
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_text() +
+  geom_path() +
+  facet_wrap(~ herc_region, scales = "free") +
+  theme(legend.position = "none") +
+  xlab("Weekly Count") +
+  ylab("Percent Positive") +
+  scale_x_log10()
+```
+
+```{r}
+ggplot(hdt_co_clean %>% 
+         filter(count_type != "death")) +
+  aes(weekly, pct_pos, col = county, label = weeknum) +
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_path() +
+  geom_text() +
+  facet_grid(herc_region ~ count_type, scales = "free") +
+  theme(legend.position = "none") +
+  xlab("Weekly Count") +
+  ylab("Percent Positive") +
+  scale_x_log10()
+```
+
+```{r}
+ggplot(hdt_co_clean %>% 
+         filter(count_type == "case",
+                weeknum <= 5)) +
+  aes(weekly, pct_pos, col = county, label = weeknum) +
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_path() +
+  geom_text() +
+  facet_wrap(~ herc_region, scales = "free") +
+  theme(legend.position = "none") +
+  xlab("Weekly Count") +
+  ylab("Percent Positive") +
+  scale_x_log10()
+```
