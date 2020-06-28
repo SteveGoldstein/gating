@@ -4,10 +4,10 @@ output: html_document
 ---
 
 ```{r include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 ```
 
-```{r message=FALSE}
+```{r}
 library(tidyverse)
 library(ohiCovidMetrics)
 library(readxl)
@@ -33,14 +33,17 @@ Notice that I have modified versions of a couple of your routines. Key differenc
 
 Part of my philosophy is to have more general routines when it makes sense to process similar data, here case, death, test. Note that I ran data through your metrics without adjustment, but down the road the guidelines for deaths or %pos could be added. Just an idea.
 
-Just a heads up that ohiCovidMetrics requires R 4.0 and the `sf` and `ROBDC` packages. Upgrade to a major R version, requires reinstalling all your packages, such as `tidyverse`.
+Just a heads up that [ohiCovidMetrics](https://github.com/carlbfrederick/ohiCovidMetrics) requires R 4.0 and the `sf` and `ROBDC` packages. Upgrade to a major R version, requires reinstalling all your packages, such as `tidyverse`.
 
-```{r pull-hist-table, message=FALSE}
+## Data setup
+
+```{r pull-hist-table}
 hdt_raw <- pull_histTable(end_date = "2020-06-17") 
 ```
 
 ```{r shape_data}
-hdt_clean <- shape_data(hdt_raw, weeks = 10)
+weeks <- 10
+hdt_clean <- shape_data(hdt_raw, weeks = weeks)
 ```
 
 ```{r eval=FALSE}
@@ -58,12 +61,13 @@ hdt_clean_pct <- hdt_clean %>%
   group_by(fips, geo_type, geo_name, pop_2018, count_type) %>%
   summarize(maxpospct = max(pct_pos),
             minpospct = min(pct_pos),
+            curpospct = pct_pos[1],
             maxcount = max(weekly),
             mincount = min(weekly)) %>%
   ungroup()
 ```
 
-## Pull out county only
+## Pull out counties only
 
 ```{r}
 hdt_co <- 
@@ -94,7 +98,8 @@ ggplot(hdt_raw %>%
   geom_line() +
   xlab("Date") +
   ylab("Cumulative Cases") +
-  scale_y_log10()
+  scale_y_log10() +
+  ggtitle("Cumulative Counts over Time")
 ```
 
 ```{r}
@@ -106,7 +111,8 @@ ggplot(hdt_raw %>%
   xlab("Cumulative Tests") +
   ylab("Cumulative Cases") +
   scale_x_log10() +
-  scale_y_log10()
+  scale_y_log10() +
+  ggtitle("Cumulative Testing vs Cases")
 ```
 
 ```{r}
@@ -117,7 +123,8 @@ ggplot(hdt_raw %>%
   geom_line() +
   xlab("Date") +
   ylab("New Cases") +
-  scale_y_log10()
+  scale_y_log10() +
+  ggtitle("New Cases by HERC Regions in Past 2 Weeks")
 ```
 
 ```{r}
@@ -129,7 +136,8 @@ ggplot(hdt_co %>%
   theme(legend.position = "none") +
   xlab("Date") +
   ylab("New Cases") +
-  scale_y_log10()
+  scale_y_log10() +
+  ggtitle("New Cases by County in Past 2 Weeks")
 ```
 
 ```{r}
@@ -141,7 +149,8 @@ ggplot(hdt_co %>%
   xlab("Date") +
   ylab("New Cases") +
   theme(legend.position = "none") +
-  scale_y_log10()
+  scale_y_log10() +
+  ggtitle("New Testing by County in Past 2 Weeks")
 ```
 
 ## Plots of Clean Data
@@ -159,8 +168,8 @@ ggplot(hdt_co_clean %>%
   geom_point() +
   facet_wrap(~herc_region, scales = "free") +
   theme(legend.position = "none") +
-  xlab("Weekly Count") +
-  ylab("Weekly Change") +
+  xlab("Current Week Count") +
+  ylab("Change from Last Week") +
   ggtitle("Counties with Changes") +
   scale_x_log10()
 ```
@@ -174,9 +183,10 @@ ggplot(hdt_co_clean %>%
   geom_path() +
   facet_wrap(~ herc_region, scales = "free") +
   theme(legend.position = "none") +
-  xlab("Weekly Count") +
+  xlab("Weekly Confirmed Cases") +
   ylab("Percent Positive") +
-  scale_x_log10()
+  scale_x_log10() +
+  ggtitle(paste("Cases by % Positive over Past", weeks, "Weeks"))
 ```
 
 ```{r warning=FALSE}
@@ -190,7 +200,8 @@ ggplot(hdt_co_clean %>%
   theme(legend.position = "none") +
   xlab("Weekly Count") +
   ylab("Percent Positive") +
-  scale_x_log10()
+  scale_x_log10() +
+  ggtitle(paste("Cases and Tests by % Positive over Past", weeks, "Weeks"))
 ```
 
 ```{r}
@@ -212,8 +223,9 @@ ggplot(hdt_co_clean %>%
 ```
 
 ```{r warning=FALSE}
-ggplot(co_week4_pct5) +
-  aes(weekly, pct_pos, col = county, label = weeknum) +
+ggplot(co_week4_pct5 %>%
+         mutate(HighPos = (curpospct < 5))) +
+  aes(weekly, pct_pos, col = HighPos, group = county, label = weeknum) +
   geom_hline(yintercept = 0, col = "grey") +
   geom_path() +
   geom_text() +
