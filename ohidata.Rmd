@@ -63,7 +63,8 @@ hdt_clean_pct <- hdt_clean %>%
             minpospct = min(pct_pos),
             curpospct = pct_pos[1],
             maxcount = max(weekly),
-            mincount = min(weekly)) %>%
+            mincount = min(weekly),
+            curcount = weekly[1]) %>%
   ungroup()
 ```
 
@@ -234,5 +235,40 @@ ggplot(co_week4_pct5 %>%
   xlab("Weekly Count") +
   ylab("Percent Positive") +
   ggtitle("Last 4 Weeks for Counties with >5% Positive Tests") +
+  scale_x_log10()
+```
+
+
+```{r}
+(co_week4_pct5l <- left_join(
+    hdt_co_clean,
+    hdt_clean_pct %>%
+      rename(county = "geo_name"),
+    by = c("fips","geo_type","county","pop_2018","count_type")) %>% 
+    filter(count_type == "case",
+           weeknum <= 4,
+           maxpospct < 5,
+           maxcount > 10)) %>%
+  filter(count_type == "case") %>%
+  select(county, weeknum, weekly, pct_pos, herc_region) %>%
+  rename(case = "weekly", pct = "pct_pos") %>%
+  pivot_wider(id_cols = c("county","herc_region"),
+              values_from = c("case", "pct"),
+              names_from = "weeknum") %>%
+  arrange(herc_region, county)
+```
+
+```{r warning=FALSE}
+ggplot(co_week4_pct5l %>%
+         mutate(HighCase = (curcount < 10))) +
+  aes(weekly, pct_pos, col = HighCase, group = county, label = weeknum) +
+  geom_hline(yintercept = 0, col = "grey") +
+  geom_path() +
+  geom_text() +
+  facet_wrap(~ herc_region, scales = "free") +
+  theme(legend.position = "none") +
+  xlab("Weekly Count") +
+  ylab("Percent Positive") +
+  ggtitle("Last 4 Weeks for Counties with >10 Confirmed Cases") +
   scale_x_log10()
 ```
